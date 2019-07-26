@@ -3,7 +3,7 @@
 // 물통에 설치된 모터펌프를 가동하여 화분에 자동으로 물주는 시스템
 // File name: Auto_water.ino
 // Author   : 은영
-// Date     : 2019.06.30
+// Date     : 2019.07.17
 //=========================================================
 
 // 사용보드 아두이노 Maga2560
@@ -22,17 +22,21 @@ LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 char
 
 // pin 번호 선언
 int pinSw[2]     = {2, 3}; //스위치1,2 Pin
-int pinTank      = 4;     //수위센서 Pin
-int pinTank_led  = 5;     //저수위경보 LED
-int pinTemp      = 6;     //온도/습도센서 Pin
+int pinTank      = 4;      //수위센서 Pin
+int pinTank_led  = 5;      //저수위경보 LED
+int pinTemp      = 6;      //온도/습도센서 Pin
 int pinMoter[2][3] = {{7, 8, 9}, {10, 11, 12}}; //모터 A,B  (HIGH, LOW, PWM)
 
-int R_time[2] = {0, 0};   //모터 남은 동작시간 (초)
-int R_sec = 5;            //모터 동작시간 최소 5초       (사용자가 가변저항으로 변경가능 5~20초)
-int M_speed = 250;        //모터 동작속도 기본 255(최대) (사용자가 가변저항으로 변경가능 100~250)
+int R_time[2] = {0, 0};    //모터 남은 동작시간 (초)
+int R_sec = 5;             //모터 동작시간 최소 5초       (사용자가 가변저항으로 변경가능 5~20초)
+int M_speed = 250;         //모터 동작속도 기본 255(최대) (사용자가 가변저항으로 변경가능 100~250)
 
 int pin_led1  = 14;         //화분1-LED
 int pin_led2  = 15;         //화분2-LED
+
+int pin_D16  = 16;          //수분센서1 전원
+int pin_D17  = 17;          //수분센서2 전원
+
 
 int pin_A0  = A0;       //토양수분센서1 Pin
 int pin_A1  = A1;       //토양수분센서2 Pin
@@ -49,10 +53,10 @@ int r4, rr4 = 0;    //모터 스피드 가변 변수
 int cds = 0;        //조도센서값
 int Sw[2];          //스위치1 상태 저장 변수
 int Tank = 0;       //물탱크 센서 Low water level 0:저수위경보
-int Low_soil = 50;  //Soil low water  화분 토양수분 최저경보
-int Max_soil = 70;  //Soil Max water  화분 토양수분 수분수치가 70이상이면 물공급중지
+int Low_soil = 60;  //Soil low water  화분 토양수분 최저경보
+int Max_soil = 90;  //Soil Max water  화분 토양수분 수분수치가 90이상이면 물공급중지
 
-int mc = 1;         //메세지 출력 위치 1~5
+int mc = 1;         // 메세지 출력 위치 1~5
 int mc_old = 0;     // 메세지를 첫번째줄에 출력을 위해 2번째줄에 출력한위치 보관
 
 
@@ -69,8 +73,10 @@ unsigned long autochecktime = 86400000  ;   // 24시간 미다 자동물주기  
 /*-------------------------------------------------------------------------------*/
 
 void setup() {
-  Serial.begin(9600);               // 시리얼 모니터 통신
+  Serial.begin(115200);               // 시리얼 모니터 통신
 
+  Serial.println("Start..");
+  
   pinMode(pinSw[0], INPUT_PULLUP);  // 스위치1 풀업저항
   pinMode(pinSw[1], INPUT_PULLUP);  // 스위치2 풀업저항
   pinMode(pinTank, INPUT_PULLUP);    // 수위센서 스위치
@@ -80,8 +86,11 @@ void setup() {
     }
 
   pinMode(pinTank_led, OUTPUT);       // 저수위경보 LED
-  pinMode(pin_led1, OUTPUT);       // 저수위경보 LED
-  pinMode(pin_led2, OUTPUT);       // 저수위경보 LED
+  pinMode(pin_led1, OUTPUT);          // 저수위경보 LED
+  pinMode(pin_led2, OUTPUT);          // 저수위경보 LED
+  pinMode(pin_D16, OUTPUT);           // 수분센서1 전원
+  pinMode(pin_D17, OUTPUT);           // 수분센서2 전원
+  
 
   for (int i = 0; i < 2; i++) {
     digitalWrite(pinMoter[i][0], LOW);   // 모터 초기 LOW LOW설정
@@ -115,7 +124,7 @@ void loop() {
     Sw[1] = digitalRead(pinSw[1]);
       
     if ((Sw[1] == 0) && (rr1< Max_soil))  //
-       moter(1, 0); //모터 동작버튼이 눌러지면
+        moter(1, 0); //모터 동작버튼이 눌러지면
 
 
 
@@ -126,18 +135,32 @@ void loop() {
   if (_time2 < millis() ) {    // 매 1 초마다 센서값 읽기
     _time2 = millis() + 1000;  // Next time after 1초.
 
-    r0 = analogRead(pin_A0);      //수분센서1
-    r1 = analogRead(pin_A1);      //수분센서2
+    digitalWrite(pin_D16, 1);  digitalWrite(pin_D17, 1);
+    delay(300);  // 200ms 전에 수분센서에 전원공급해야함
+
+    r0 = 1023 - analogRead(pin_A0);      //수분센서1
+    r1 = 1023 - analogRead(pin_A1);      //수분센서2
+    digitalWrite(pin_D16, 0);  digitalWrite(pin_D17, 0);
+    
     r2 = 1023 - analogRead(pin_A2); //조도센서
-    r3 = analogRead(pin_A3);      //모터 동작시간
-    r4 = analogRead(pin_A4);      //모터 스피드
+    r3 = analogRead(pin_A3);        //모터 동작시간
+    r4 = analogRead(pin_A4);        //모터 스피드
 
-    rr0 = map(r0, 0, 1023, 0, 100 );  //수분센서1  0~100 %
-    rr1 = map(r1, 0, 1023, 0, 100 );  //수분센서2  0~100 %
-    rr2 = map(r2, 0, 1023, 0, 100 );  //조도센서  0~100 %
-    rr3 = map(r3, 0, 1023, 5, 21 );   //모터 동작시간 5~20초
-    rr4 = map(r4, 0, 1023, 100, 250 ); //모터 스피드 100~250
+    if (r0 < 850) rr0 = map(r0, 20,   850,   0,   50 );   //수분센서1  0~vv50 %
+    else          rr0 = map(r0, 850,  990,   50, 100 );   //수분센서1  50~100 %
+    
+    if (r1 < 920) rr1 = map(r1, 20,   920,   0,   50 );   //수분센서2  0~vv50 %
+    else          rr1 = map(r1, 920,  1010,   50, 100 );   //수분센서2  50~100 % 
+   
+    rr2 = map(r2,  0, 1023,   0, 100 );     //조도센서  0~100 %
+    rr3 = map(r3,  0, 1023,   5,  21 );     //모터 동작시간 5~20초
+    rr4 = map(r4,  0, 1023, 100, 250 );     //모터 스피드 100~250
 
+    if(rr0>99) rr0=99;  //범위초과 오차보정
+    if(rr0<0)  rr0=0;   //범위초과 오차보정
+    if(rr1>99) rr1=99;  //범위초과 오차보정
+    if(rr1<0)  rr1=0;   //범위초과 오차보정
+    
     Tank = digitalRead(pinTank);      //물탱크 센서 Low water level 0:저수위경보
 
     if (abs(cds - rr2) > 2) { //CDS 조도값이  3이상 변할때 적용
@@ -165,7 +188,7 @@ void loop() {
     //---------- 화분 토양습도 Low_soil 이하  경보 LED ---------------------
     int led_1 = digitalRead(pin_led1);  //화분-1 토양습도 경보 LED
     if (rr0 < Low_soil) {  // 화분-1 토양습도 경보 LED 점멸
-        if ((autotime1+autochecktime < millis()) || (autotime1 == 0)){
+        if ((autotime1+autochecktime < millis()) || (autotime1 != 0)) {
           moter(0, 1);  //자동으로 물주기
           autotime1 = millis();
         }
@@ -179,7 +202,7 @@ void loop() {
 
     int led_2 = digitalRead(pin_led2);  //화분-2 토양습도 경보 LED
     if (rr1 < Low_soil) {  // 화분-2 토양습도 경보 LED 점멸
-        if ((autotime2+autochecktime < millis()) || (autotime2 == 0)){
+        if ((autotime2+autochecktime < millis()) || (autotime2 != 0)){
           moter(1, 1);
           autotime2 = millis();
         }
@@ -242,8 +265,8 @@ void loop() {
     _time5 = millis() + 1000;  // Next time after 1초.
 
     Serial.print("Tank:");   Serial.print(Tank);
-    Serial.print(" 수분1:");  Serial.print(rr0);   Serial.print("% ");
-    Serial.print("수분2:");   Serial.print(rr1);   Serial.print("% ");
+    Serial.print(" 수분1:"); Serial.print(r0); Serial.print("- "); Serial.print(rr0);   Serial.print("% ");
+    Serial.print("수분2:");  Serial.print(r1); Serial.print("- "); Serial.print(rr1);   Serial.print("% ");
     Serial.print("조도:");    Serial.print(rr2);   Serial.print("% ");
     Serial.print("동작:");    Serial.print(R_sec);
     Serial.print(" Speed:"); Serial.print(M_speed);
@@ -344,6 +367,7 @@ void lcd_print(int y, int k) { //y 위치 0,1   k: 1~5, 11~17
 /*-------------------------------------------------------------------------------*/
 void moter(int m, int a) { // m : 모터번호 , a : 1이면 자동, 0이면 수동
   int ok = digitalRead(pinMoter[m][0]);
+
   if ((ok != 1) && (Tank == 1)) { //물탱크에 물이 있고 모터가 동작중이 아니면   1:동작중 0:멈춤상태
     if (a==0)  {//수동동작
 
