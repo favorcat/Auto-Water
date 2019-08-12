@@ -74,7 +74,7 @@ unsigned long autochecktime = 86400000  ;   // 24시간 미다 자동물주기  
 
 void setup() {
   Serial.begin(115200);               // 시리얼 모니터 통신
-
+  
   Serial.println("Start..");
   
   pinMode(pinSw[0], INPUT_PULLUP);  // 스위치1 풀업저항
@@ -136,7 +136,7 @@ void loop() {
     _time2 = millis() + 1000;  // Next time after 1초.
 
     digitalWrite(pin_D16, 1);  digitalWrite(pin_D17, 1);
-    delay(300);  // 200ms 전에 수분센서에 전원공급해야함
+    delay(300);  // 300ms 전에 수분센서에 전원공급해야함
 
     r0 = 1023 - analogRead(pin_A0);      //수분센서1
     r1 = 1023 - analogRead(pin_A1);      //수분센서2
