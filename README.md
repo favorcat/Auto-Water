@@ -89,3 +89,9 @@
 - 2019/04/21 - First
 - 2019/06/30 - Second
 - 2019/07/17 - Third
+
+
+
+***
+
+학교 교지 '풍향' 51호에 프로젝트 진행과정이 수록 되었습니다. [교지 다운로드 (p.60~68)](http://kdsg.gen.hs.kr/xboard/board.php?mode=downpost&tbnum=89&sCat=0&page=1&keyset=&searchword=&number=10815&file_num=11986)
